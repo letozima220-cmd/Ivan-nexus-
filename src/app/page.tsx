@@ -3,7 +3,12 @@
 import { motion } from "framer-motion";
 import { useState, useRef, Suspense } from "react";
 import { Canvas, useFrame } from "@react-three/fiber";
-import { OrbitControls, Environment, Float, ContactShadows, Text } from "@react-three/drei";
+import {
+  OrbitControls,
+  Environment,
+  Float,
+  ContactShadows,
+} from "@react-three/drei";
 import * as THREE from "three";
 
 // ===================== DATA =====================
@@ -35,12 +40,37 @@ const cases = [
 ];
 
 // ===================== 3D COMPONENTS =====================
-function Avatar() {
+function Avatar({ talking = false }: { talking?: boolean }) {
   const group = useRef<THREE.Group>(null);
+  const mouthRef = useRef<THREE.Mesh>(null);
 
   useFrame((state) => {
     if (group.current) {
       group.current.rotation.y = Math.sin(state.clock.elapsedTime * 0.3) * 0.15;
+    }
+
+    // Lip-Sync
+    if (mouthRef.current) {
+      if (talking) {
+        const t = state.clock.elapsedTime;
+        const open =
+          0.08 +
+          Math.abs(Math.sin(t * 12)) * 0.12 +
+          Math.abs(Math.sin(t * 7.3)) * 0.06;
+        mouthRef.current.scale.y = open;
+        mouthRef.current.position.y = 1.68 - open * 0.3;
+      } else {
+        mouthRef.current.scale.y = THREE.MathUtils.lerp(
+          mouthRef.current.scale.y,
+          0.04,
+          0.15
+        );
+        mouthRef.current.position.y = THREE.MathUtils.lerp(
+          mouthRef.current.position.y,
+          1.68,
+          0.15
+        );
+      }
     }
   });
 
@@ -61,17 +91,41 @@ function Avatar() {
       {/* Eyes */}
       <mesh position={[-0.1, 1.9, 0.22]}>
         <sphereGeometry args={[0.04, 16, 16]} />
-        <meshStandardMaterial color="#e63946" emissive="#e63946" emissiveIntensity={0.8} />
+        <meshStandardMaterial
+          color="#e63946"
+          emissive="#e63946"
+          emissiveIntensity={0.8}
+        />
       </mesh>
       <mesh position={[0.1, 1.9, 0.22]}>
         <sphereGeometry args={[0.04, 16, 16]} />
-        <meshStandardMaterial color="#e63946" emissive="#e63946" emissiveIntensity={0.8} />
+        <meshStandardMaterial
+          color="#e63946"
+          emissive="#e63946"
+          emissiveIntensity={0.8}
+        />
+      </mesh>
+
+      {/* Mouth — Lip-Sync */}
+      <mesh
+        ref={mouthRef}
+        position={[0, 1.68, 0.24]}
+        scale={[0.14, 0.04, 0.06]}
+      >
+        <boxGeometry args={[1, 1, 1]} />
+        <meshStandardMaterial color="#111" metalness={0.1} roughness={0.6} />
       </mesh>
 
       {/* Core glow */}
       <mesh position={[0, 0.9, 0.2]}>
         <sphereGeometry args={[0.12, 16, 16]} />
-        <meshStandardMaterial color="#2a9d8f" emissive="#2a9d8f" emissiveIntensity={1.2} transparent opacity={0.7} />
+        <meshStandardMaterial
+          color="#2a9d8f"
+          emissive="#2a9d8f"
+          emissiveIntensity={1.2}
+          transparent
+          opacity={0.7}
+        />
       </mesh>
     </group>
   );
@@ -80,47 +134,72 @@ function Avatar() {
 function Room() {
   return (
     <>
-      {/* Floor */}
-      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -1.2, 0]} receiveShadow>
+      <mesh
+        rotation={[-Math.PI / 2, 0, 0]}
+        position={[0, -1.2, 0]}
+        receiveShadow
+      >
         <planeGeometry args={[12, 12]} />
         <meshStandardMaterial color="#0a0a0a" metalness={0.6} roughness={0.2} />
       </mesh>
 
-      {/* Back wall */}
       <mesh position={[0, 2, -4]} receiveShadow>
         <planeGeometry args={[12, 8]} />
         <meshStandardMaterial color="#050505" metalness={0.3} roughness={0.8} />
       </mesh>
 
-      {/* Accent light panels */}
       <mesh position={[-3.5, 2.5, -3.9]}>
         <planeGeometry args={[1.5, 0.08]} />
-        <meshStandardMaterial color="#e63946" emissive="#e63946" emissiveIntensity={2} />
+        <meshStandardMaterial
+          color="#e63946"
+          emissive="#e63946"
+          emissiveIntensity={2}
+        />
       </mesh>
       <mesh position={[3.5, 2.5, -3.9]}>
         <planeGeometry args={[1.5, 0.08]} />
-        <meshStandardMaterial color="#2a9d8f" emissive="#2a9d8f" emissiveIntensity={2} />
+        <meshStandardMaterial
+          color="#2a9d8f"
+          emissive="#2a9d8f"
+          emissiveIntensity={2}
+        />
       </mesh>
     </>
   );
 }
 
-function Scene() {
+function Scene({ talking }: { talking: boolean }) {
   return (
     <>
       <ambientLight intensity={0.25} />
-      <directionalLight position={[5, 8, 5]} intensity={1.2} castShadow shadow-mapSize={[1024, 1024]} />
+      <directionalLight
+        position={[5, 8, 5]}
+        intensity={1.2}
+        castShadow
+        shadow-mapSize={[1024, 1024]}
+      />
       <pointLight position={[-3, 3, 2]} intensity={0.6} color="#e63946" />
       <pointLight position={[3, 3, 2]} intensity={0.6} color="#2a9d8f" />
 
       <Room />
       <Float speed={1.5} rotationIntensity={0.1} floatIntensity={0.3}>
-        <Avatar />
+        <Avatar talking={talking} />
       </Float>
 
-      <ContactShadows position={[0, -1.19, 0]} opacity={0.5} scale={10} blur={2} />
+      <ContactShadows
+        position={[0, -1.19, 0]}
+        opacity={0.5}
+        scale={10}
+        blur={2}
+      />
       <Environment preset="night" />
-      <OrbitControls enablePan={false} minPolarAngle={Math.PI / 4} maxPolarAngle={Math.PI / 2.1} minDistance={3} maxDistance={8} />
+      <OrbitControls
+        enablePan={false}
+        minPolarAngle={Math.PI / 4}
+        maxPolarAngle={Math.PI / 2.1}
+        minDistance={3}
+        maxDistance={8}
+      />
     </>
   );
 }
@@ -130,23 +209,25 @@ export default function Home() {
   const [form, setForm] = useState({ name: "", message: "" });
   const [bciConnected, setBciConnected] = useState(false);
   const [bciSignal, setBciSignal] = useState(0);
+  const [talking, setTalking] = useState(false);
 
   const scrollTo = (id: string) => {
     document.getElementById(id)?.scrollIntoView({ behavior: "smooth" });
   };
 
-  // Mock BCI signal
   const toggleBci = () => {
-    setBciConnected((prev) => !prev);
-    if (!bciConnected) {
-      const interval = setInterval(() => {
-        setBciSignal(Math.floor(Math.random() * 40) + 60);
-      }, 800);
-      (window as any).__bciInterval = interval;
-    } else {
-      clearInterval((window as any).__bciInterval);
-      setBciSignal(0);
-    }
+    setBciConnected((prev) => {
+      if (!prev) {
+        const interval = setInterval(() => {
+          setBciSignal(Math.floor(Math.random() * 40) + 60);
+        }, 800);
+        (window as any).__bciInterval = interval;
+      } else {
+        clearInterval((window as any).__bciInterval);
+        setBciSignal(0);
+      }
+      return !prev;
+    });
   };
 
   return (
@@ -195,34 +276,47 @@ export default function Home() {
         </motion.div>
       </section>
 
-      {/* ========== 3D ROOM + BCI ========== */}
+      {/* ========== 3D ROOM + BCI + LIP-SYNC ========== */}
       <section id="room" className="py-16 px-4 md:px-6">
         <div className="max-w-6xl mx-auto">
           <h2 className="text-3xl md:text-4xl font-bold text-white mb-2 text-center">
             NEXUS Room · Digital Twin
           </h2>
           <p className="text-center text-nexus-gray/60 mb-8">
-            3D-пространство + BCI Ready Layer
+            3D-пространство · Lip-Sync · BCI Ready
           </p>
 
           <div className="grid lg:grid-cols-3 gap-6">
             {/* 3D Canvas */}
             <div className="lg:col-span-2 h-[420px] md:h-[520px] rounded-2xl overflow-hidden glass relative">
-              <Suspense fallback={<div className="flex items-center justify-center h-full text-nexus-gray/50">Загрузка 3D...</div>}>
+              <Suspense
+                fallback={
+                  <div className="flex items-center justify-center h-full text-nexus-gray/50">
+                    Загрузка 3D...
+                  </div>
+                }
+              >
                 <Canvas shadows camera={{ position: [0, 1.5, 5], fov: 45 }}>
-                  <Scene />
+                  <Scene talking={talking} />
                 </Canvas>
               </Suspense>
             </div>
 
-            {/* BCI Panel */}
+            {/* Control Panel */}
             <div className="glass rounded-2xl p-6 flex flex-col justify-between">
               <div>
-                <h3 className="text-xl font-semibold text-white mb-4">BCI Layer</h3>
-                <div className="space-y-3 text-sm">
+                <h3 className="text-xl font-semibold text-white mb-4">
+                  Control Layer
+                </h3>
+
+                <div className="space-y-3 text-sm mb-6">
                   <div className="flex justify-between">
-                    <span>Статус</span>
-                    <span className={bciConnected ? "text-nexus-emerald" : "text-nexus-gray/50"}>
+                    <span>BCI Статус</span>
+                    <span
+                      className={
+                        bciConnected ? "text-nexus-emerald" : "text-nexus-gray/50"
+                      }
+                    >
                       {bciConnected ? "CONNECTED" : "STANDBY"}
                     </span>
                   </div>
@@ -230,7 +324,7 @@ export default function Home() {
                     <span>Signal Quality</span>
                     <span className="text-white">{bciSignal}%</span>
                   </div>
-                  <div className="h-2 bg-white/10 rounded-full overflow-hidden mt-2">
+                  <div className="h-2 bg-white/10 rounded-full overflow-hidden">
                     <div
                       className="h-full bg-gradient-to-r from-nexus-red to-nexus-emerald transition-all duration-500"
                       style={{ width: `${bciSignal}%` }}
@@ -239,20 +333,33 @@ export default function Home() {
                 </div>
               </div>
 
-              <button
-                onClick={toggleBci}
-                className={`mt-8 w-full py-3 rounded-full font-medium transition-all ${
-                  bciConnected
-                    ? "bg-nexus-emerald/20 text-nexus-emerald border border-nexus-emerald/40"
-                    : "bg-nexus-red hover:bg-nexus-red/90 text-white"
-                }`}
-              >
-                {bciConnected ? "Отключить BCI" : "Подключить BCI (Demo)"}
-              </button>
+              <div className="space-y-3">
+                <button
+                  onClick={toggleBci}
+                  className={`w-full py-3 rounded-full font-medium transition-all ${
+                    bciConnected
+                      ? "bg-nexus-emerald/20 text-nexus-emerald border border-nexus-emerald/40"
+                      : "bg-nexus-red hover:bg-nexus-red/90 text-white"
+                  }`}
+                >
+                  {bciConnected ? "Отключить BCI" : "Подключить BCI (Demo)"}
+                </button>
+
+                <button
+                  onClick={() => setTalking((prev) => !prev)}
+                  className={`w-full py-3 rounded-full font-medium transition-all ${
+                    talking
+                      ? "bg-nexus-red/20 text-nexus-red border border-nexus-red/40"
+                      : "bg-white/5 text-white border border-white/10 hover:bg-white/10"
+                  }`}
+                >
+                  {talking ? "Остановить речь" : "Lip-Sync (Говорить)"}
+                </button>
+              </div>
 
               <p className="text-xs text-nexus-gray/40 mt-4 leading-relaxed">
-                Заготовка под Web Serial / Web Bluetooth.  
-                Реальные драйверы (OpenBCI, Emotiv и др.) подключаются отдельно.
+                Lip-Sync активен. BCI — заготовка под Web Serial / Web
+                Bluetooth.
               </p>
             </div>
           </div>
@@ -266,10 +373,13 @@ export default function Home() {
             Ценность = Навыки × Упаковка × Результат
           </h2>
           <p className="text-lg text-nexus-gray/80 leading-relaxed mb-6">
-            NEXUS — живая интеллектуальная экосистема, которая постоянно повышает рыночную и реальную ценность Ивана Сергеевича.
+            NEXUS — живая интеллектуальная экосистема, которая постоянно повышает
+            рыночную и реальную ценность Ивана Сергеевича.
           </p>
           <p className="text-nexus-gray/70 leading-relaxed">
-            AI-агенты, умные пространства, системный дизайн и переговоры высокого уровня. Всё работает на одну цель — максимальный коэффициент обмена ценности.
+            AI-агенты, умные пространства, системный дизайн и переговоры высокого
+            уровня. Всё работает на одну цель — максимальный коэффициент обмена
+            ценности.
           </p>
         </div>
       </section>
@@ -277,7 +387,9 @@ export default function Home() {
       {/* ========== SKILLS ========== */}
       <section id="skills" className="py-24 px-6 bg-nexus-dark/50">
         <div className="max-w-4xl mx-auto">
-          <h2 className="text-3xl md:text-4xl font-bold text-white mb-12">Навыки</h2>
+          <h2 className="text-3xl md:text-4xl font-bold text-white mb-12">
+            Навыки
+          </h2>
           <div className="space-y-6">
             {skills.map((skill) => (
               <div key={skill.name}>
@@ -302,13 +414,24 @@ export default function Home() {
       {/* ========== PROJECTS ========== */}
       <section id="projects" className="py-24 px-6">
         <div className="max-w-5xl mx-auto">
-          <h2 className="text-3xl md:text-4xl font-bold text-white mb-12">Проекты & Кейсы</h2>
+          <h2 className="text-3xl md:text-4xl font-bold text-white mb-12">
+            Проекты & Кейсы
+          </h2>
           <div className="grid md:grid-cols-3 gap-6">
             {cases.map((item) => (
-              <div key={item.title} className="glass p-6 rounded-2xl hover:bg-white/5 transition-all duration-300">
-                <span className="text-xs text-nexus-emerald tracking-wider uppercase">{item.tag}</span>
-                <h3 className="text-xl font-semibold text-white mt-3 mb-3">{item.title}</h3>
-                <p className="text-nexus-gray/70 text-sm leading-relaxed">{item.desc}</p>
+              <div
+                key={item.title}
+                className="glass p-6 rounded-2xl hover:bg-white/5 transition-all duration-300"
+              >
+                <span className="text-xs text-nexus-emerald tracking-wider uppercase">
+                  {item.tag}
+                </span>
+                <h3 className="text-xl font-semibold text-white mt-3 mb-3">
+                  {item.title}
+                </h3>
+                <p className="text-nexus-gray/70 text-sm leading-relaxed">
+                  {item.desc}
+                </p>
               </div>
             ))}
           </div>
@@ -318,8 +441,12 @@ export default function Home() {
       {/* ========== CONTACT ========== */}
       <section id="contact" className="py-24 px-6 bg-nexus-dark/50">
         <div className="max-w-xl mx-auto text-center">
-          <h2 className="text-3xl md:text-4xl font-bold text-white mb-4">Связаться</h2>
-          <p className="text-nexus-gray/70 mb-10">Готов обсудить пилоты, бартер и партнёрства</p>
+          <h2 className="text-3xl md:text-4xl font-bold text-white mb-4">
+            Связаться
+          </h2>
+          <p className="text-nexus-gray/70 mb-10">
+            Готов обсудить пилоты, бартер и партнёрства
+          </p>
 
           <div className="space-y-4 text-left">
             <input
@@ -347,7 +474,7 @@ export default function Home() {
       </section>
 
       <footer className="py-10 text-center text-nexus-gray/40 text-sm">
-        NEXUS Protocol · Digital Twin · BCI Ready · 2026
+        NEXUS Protocol · Digital Twin · Lip-Sync · BCI Ready · 2026
       </footer>
     </main>
   );
